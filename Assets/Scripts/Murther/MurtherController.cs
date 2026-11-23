@@ -122,8 +122,29 @@ public class MurtherController : MonoBehaviour
 
         ActualizarModelo();
         AplicarGiro(false);
+        ActualizarLuzTinta();
         efectoT += Time.deltaTime;
     }
+
+    // Luz de personaje para el shader "Five Star/Murther Tinta": gira con Murther, así la cara queda
+    // iluminada y el costado en sombra (con trama) mirando a cualquiera de los dos lados. Con una luz
+    // fija del mundo eso no es posible: hacia un lado la cara quedaría en sombra.
+    [Header("Luz del shader de tinta (frente, arriba, hacia la cámara)")]
+    public Vector3 luzTinta = new Vector3(0.75f, 0.6f, 0.3f);
+    static readonly int idLuzTinta = Shader.PropertyToID("_LuzTintaDir");
+
+    void ActualizarLuzTinta()
+    {
+        if (visual == null) return;
+        // Hacia dónde apunta la cara ahora mismo (incluye el giro en curso al voltear).
+        float yaw = visual.localEulerAngles.y - yawModelo - giroBase;
+        Vector3 frente = transform.rotation * (Quaternion.Euler(0f, yaw, 0f) * Vector3.right);
+        Vector3 dir = frente * luzTinta.x + Vector3.up * luzTinta.y + Vector3.back * luzTinta.z;
+        dir.Normalize();
+        Shader.SetGlobalVector(idLuzTinta, new Vector4(dir.x, dir.y, dir.z, 1f));
+    }
+
+    void OnDisable() { Shader.SetGlobalVector(idLuzTinta, Vector4.zero); }
 
     void FixedUpdate()
     {
