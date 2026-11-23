@@ -2,7 +2,7 @@
 
 Revisión técnica del prototipo de **Five Star Studio** sobre `main` (`0dea7b8`). Este README describe **solo los cambios de la rama `Correcciones-sugeridas`**. El reporte de avances del equipo está en [`Docs/ProyectoIntegrador_Avances_FiveStarStudio.pdf`](Docs/ProyectoIntegrador_Avances_FiveStarStudio.pdf).
 
-Todo se hizo y verificó en **Unity 6000.3.23f1**: compilación sin errores ni advertencias, pruebas automáticas en Play Mode (entrada, física de Murther, Build Settings y carga de escenas) y capturas desde las mismas vistas en las dos versiones. **Falta probarlo con un control físico, jugarlo de principio a fin a mano y compilar el ejecutable.** Cada commit corresponde a un bloque, así que cualquiera se puede revisar o revertir por separado.
+Todo se hizo y verificó en **Unity 6000.3.23f1**: compilación sin errores ni advertencias (C# y shaders), pruebas automáticas en Play Mode (entrada, física de Murther, Build Settings y carga de escenas) y capturas desde las mismas vistas en las dos versiones. **Falta probarlo con un control físico, jugarlo de principio a fin a mano y compilar el ejecutable.** Cada commit corresponde a un bloque, así que cualquiera se puede revisar o revertir por separado.
 
 | Commit | Bloque |
 |---|---|
@@ -10,7 +10,10 @@ Todo se hizo y verificó en **Unity 6000.3.23f1**: compilación sin errores ni a
 | `9350745` | 2. Herramientas de editor que regeneraban escenas solas |
 | `c92da21` | 3. Flujo y menú |
 | `e09f147` | 4. Ajustes visuales |
-| *(último)* | 5. Documentos en `Docs/` y este README |
+| `5568768` | 5. Documentos en `Docs/` y este README |
+| `e1c25bc` | 6. Revisión gráfica: shader de tinta para Murther |
+| `83d78d6` | 7. Revisión gráfica: post procesado y gotas de tinta |
+| *(último)* | README y capturas actualizados |
 
 ## Comparación con `main`
 
@@ -31,15 +34,16 @@ Capturas renderizadas en Unity, en Play Mode, a 1280×720, con el mismo recorrid
 
 En `main` los niveles se ven **negros** y Murther **magenta**: el proyecto no tenía asignado el render pipeline URP (bloque 1). El menú, que es solo interfaz, se ve igual en las dos versiones.
 
-Para separar ese error de los ajustes visuales, aquí está Murther de cerca **solo con URP asignado** y con los ajustes del bloque 4:
+Para separar ese error de los ajustes visuales, aquí está Murther de cerca en tres pasos: **solo con URP asignado**, con los ajustes del **bloque 4** (giro y luz) y con la **revisión gráfica** (bloques 6 y 7):
 
-| Solo con URP asignado | `Correcciones-sugeridas` |
-|---|---|
-| ![Murther quieto, solo URP](Docs/Comparacion/soloURP_murther_cerca.jpg) | ![Murther quieto, corregido](Docs/Comparacion/corregido_murther_cerca.jpg) |
-| ![Murther corriendo, solo URP](Docs/Comparacion/soloURP_murther_corriendo.jpg) | ![Murther corriendo, corregido](Docs/Comparacion/corregido_murther_corriendo.jpg) |
+| Solo con URP asignado | Bloque 4 | Bloques 6 y 7 (estado final) |
+|---|---|---|
+| ![Murther quieto, solo URP](Docs/Comparacion/soloURP_murther_cerca.jpg) | ![Murther quieto, bloque 4](Docs/Comparacion/bloque4_murther_cerca.jpg) | ![Murther quieto, final](Docs/Comparacion/corregido_murther_cerca.jpg) |
+| ![Murther corriendo, solo URP](Docs/Comparacion/soloURP_murther_corriendo.jpg) | ![Murther corriendo, bloque 4](Docs/Comparacion/bloque4_murther_corriendo.jpg) | ![Murther corriendo, final](Docs/Comparacion/corregido_murther_corriendo.jpg) |
 
 - **Cara:** de perfil estricto el casco de calavera es un rectángulo blanco. Girado 35° hacia la cámara se le ven los ojos y los dientes hacia los dos lados.
-- **Luz:** antes el casco se quemaba en blanco puro. Ahora tiene volumen: la cara, el costado y la parte de abajo se distinguen.
+- **Luz:** con URP/Lit el casco se quemaba en blanco puro; el bloque 4 le devolvió el volumen.
+- **Estilo:** con el shader de tinta Murther deja de verse como un modelo 3D "de plástico" pegado sobre un dibujo: tiene sombra malva con rayado como las columnas del fondo, contorno de tinta y brillos de tinta húmeda en el cuerpo.
 
 ## 1. Proyecto: render pipeline, entrada, Build Settings, nombre y `.gitignore`
 
@@ -99,12 +103,62 @@ Se perdían los cambios hechos a mano, y cada integrante podía subir versiones 
 
 **Para volver al perfil estricto:** en `Murther` → `MurtherController`, poner *Giro Hacia Camara* en 0.
 
+> El material del casco y la luz de este bloque los reemplazó después el shader de tinta (bloque 6), que tiene sus propios valores.
+
 ## 5. Documentos
 
 - `Readme.md` era una carpeta con el PDF de avances; ahora el PDF está en `Docs/`, para que `README.md` pueda ser un archivo (en macOS y Windows los dos nombres chocan).
 - El video `WhatsApp Video 2026-11-12 at 5.13.23 PM.mp4` de la raíz pasó a `Docs/Video_avance_2026-11-12.mp4`.
 
-## 6. Cómo probar
+## 6. Revisión gráfica: shader de tinta para Murther
+
+Los fondos están dibujados a mano con tinta: sombras planas en pocos tonos, rayado en las zonas oscuras y contornos negros. Murther usaba **URP/Lit**, un sombreado suave y realista que lo hacía ver como un modelo 3D pegado encima del dibujo. El nuevo shader **`Five Star/Murther Tinta`** (`Assets/Shaders/MurtherTinta.shader`) lo dibuja con las mismas reglas que el escenario.
+
+| Mirando a la derecha | Mirando a la izquierda |
+|---|---|
+| ![Murther con shader de tinta, derecha](Docs/Comparacion/tinta_derecha.jpg) | ![Murther con shader de tinta, izquierda](Docs/Comparacion/tinta_izquierda.jpg) |
+
+| Qué hace | Por qué |
+|---|---|
+| **Sombreado por bandas** (luz / sombra) con sombra **malva** | Como el sombreado posterizado del fondo. El malva sale de las sombras de los muros y rocas del escenario. |
+| **Trama de tinta** en la sombra y **trama cruzada** en la sombra profunda | Imita el rayado de las columnas. Las líneas viajan con Murther, no se quedan pegadas a la pantalla. Tienen un temblor leve de trazo a mano y 7 líneas por metro (≈13 px entre líneas en 1080p): más densas producían moiré. |
+| **Contorno negro** de grosor constante | El contorno de tinta de todo el dibujo. Se hace inflando una copia de la malla (casco invertido). |
+| **Borde de luz** y **brillo duro** en cuerpo y manos | El cuerpo es negro y se perdía contra las zonas negras del fondo. El brillo parece tinta húmeda. |
+| **Luz de personaje** que gira con Murther (`MurtherController` → *Luz Tinta*) | Con la luz fija del mundo no se puede tener la cara iluminada mirando a los dos lados: hacia uno de ellos quedaba en sombra. Ahora la cara siempre está en luz y el costado en sombra con trama. |
+| `NormalesSuavesContorno.cs` (Editor) | Al importar los FBX de `Assets/Murther/Modelos`, guarda normales promediadas en los tangentes. Con las normales originales el contorno se abría en las esquinas duras del cuerpo y los pies. **Los FBX no se modifican**: solo cambian los datos importados. |
+| Pases de sombra, profundidad y normales | Murther sigue apareciendo en el prepass de SSAO y puede proyectar sombra si se activa en la luz. |
+
+Los cuatro materiales de `Assets/Murther/Materiales` conservan su GUID: la escena no cambió de referencias. Además, `Murther_fullblack` tenía color de emisión pero no la palabra clave `_EMISSION`, así que el "brillo propio" del cuerpo **nunca se aplicaba**.
+
+**Cómo ajustarlo** (en cada material, sin tocar código):
+
+| Propiedad | Para qué |
+|---|---|
+| *Color de la sombra* | Tono de la parte en sombra (multiplica al color base). |
+| *Umbral luz / sombra* | Más alto = más superficie en sombra. |
+| *Trama → Intensidad, Líneas por metro, Grosor* | Cantidad y densidad del rayado. Intensidad 0 lo quita. |
+| *Borde de luz*, *Brillo duro* | Separación del cuerpo negro contra el fondo. |
+| *Contorno → Grosor* | En metros; 0 lo quita. |
+
+La dirección de la luz de personaje se ajusta en `Murther` → `MurtherController` → *Luz Tinta* (frente, arriba, hacia la cámara).
+
+## 7. Revisión gráfica: post procesado y gotas de tinta
+
+| Antes (bloque 4) | Después |
+|---|---|
+| ![Nivel 1 antes de la revisión gráfica](Docs/Comparacion/bloque4_4_nivel1_inicio.jpg) | ![Nivel 1 después de la revisión gráfica](Docs/Comparacion/corregido_4_nivel1_inicio.jpg) |
+
+| Cambio | Por qué |
+|---|---|
+| Perfil `Niveles_PostProcesado`: **viñeta** (0.3) y **grano** fino (0.18), con un *Volumen Global* en cada nivel | El grano cae igual sobre el dibujo y sobre Murther: los dos parecen impresos en la misma hoja. La viñeta oscurece las orillas como la sombra del menú. **Sin tonemapping ni corrección de color**, que cambiarían los colores del dibujo. |
+| Post procesado activado en las cámaras de los niveles | Estaba apagado: la cámara ignoraba cualquier Volume. |
+| **Reflejo de tinta húmeda** en las texturas de gota y mancha | Las gotas eran negras sobre las zonas negras del fondo y no se veían. |
+| `MurtherTinta` → *Color Tinta*: casi negro → blanco | Multiplicaba la textura y apagaba su borde y el reflejo; ahora el color sale de la textura. |
+| Luz del Nivel 1 un poco menos cálida | Con el shader nuevo solo ilumina a Murther, y teñía el casco de crema. |
+
+`Juego → Fase 1` crea todo esto igual (materiales, post procesado y texturas), así que volver a ejecutarlo no lo deshace.
+
+## 8. Cómo probar
 
 1. `git switch Correcciones-sugeridas` y abrir el proyecto con Unity 6000.3.23f1. **No** debe aparecer ningún diálogo ni regenerarse ninguna escena.
 2. Abrir **MenuPrincipal** y dar Play:
@@ -112,9 +166,9 @@ Se perdían los cambios hechos a mano, y cada integrante podía subir versiones 
    - Con flechas o control: navegar el menú, abrir **Créditos** y regresar con Esc/B, abrir **Cerrar Juego** y cancelar.
    - **Iniciar Juego** → cinemática (se salta con el botón, Esc, Start o B) → pantalla de carga → Nivel 1.
 3. En el **Nivel 1**: moverse con A/D, flechas o stick; saltar con Espacio, W o A del control; doble salto en el aire. Llegar a las dos orillas: Murther debe verse completo.
-4. Ajustar a gusto *Giro Hacia Camara* (`MurtherController`) y la luz (`Luz Direccional` y *Lighting → Environment* del Nivel 1).
+4. Ajustar a gusto *Giro Hacia Camara* y *Luz Tinta* (`MurtherController`), los materiales de `Assets/Murther/Materiales` y el perfil `Assets/Settings/Niveles_PostProcesado`.
 
-## 7. Pendientes para el equipo (no aplicados)
+## 9. Pendientes para el equipo (no aplicados)
 
 Son decisiones de contenido o de diseño, así que se dejaron como estaban:
 
@@ -124,7 +178,7 @@ Son decisiones de contenido o de diseño, así que se dejaron como estaban:
 - **Controles anunciados que no existen:** la pantalla de carga muestra *Ataque ligero/Interactuar* y *Recargar*, y `TextosJuego.Controles` menciona *Esquivar (Shift/J)* y *Atacar (K/X)*. El dash y el ataque están en el prototipo anterior (`PlayerController3D`), no en `MurtherController`.
 - **No hay pausa ni forma de volver al menú** desde un nivel.
 - **Prototipo anterior (`Assets/Assets/`, ~2400 líneas):** ninguna escena lo usa. Conviene decidir si se integra (vida, enemigos, flechas) o se borra.
+- **Raya clara en el costado del casco:** con el shader de tinta se ve una línea horizontal iluminada dentro de la sombra. Es un bisel del modelo que atrapa la luz; si no es intencional, se corrige en el modelo (Maya).
 - **Doble salto:** la cabeza sube 1.15 m y deja un hueco grande respecto al cuerpo. Si no es el efecto buscado, bajar *Altura Cabeza* en `MurtherController`.
-- **La tinta casi no se ve** sobre las zonas oscuras del fondo: es negra sobre negro. Un borde más claro o un tono azulado la harían legible.
 - `Juego → Fase 1` sigue creando el Animator Controller y los materiales con GUIDs nuevos cada vez que se ejecuta; solo debe usarse cuando haga falta rehacer a Murther.
 - `SampleScene.unity` sobra, y los paquetes `com.unity.ai.assistant` (pre) y `com.unity.pipeline` (experimental) son versiones de prueba.
