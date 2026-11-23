@@ -11,10 +11,9 @@ using UnityEngine.UI;
 
 // Fase 1: escala de los fondos de Nivel1-3, pantallas de carga (2 s) antes de cada nivel y
 // Murther en Nivel1 (modelo con huesos, animaciones Idle/Salto, movimiento, doble salto y tinta).
-// Menú: Juego > Fase 1 - Murther y escala de niveles. Se ejecuta sola una vez por versión.
+// Menú: Juego > Fase 1 - Murther y escala de niveles (solo manual, pide confirmación).
 public static class ConfiguradorFase1
 {
-    const int Version = 4;
     const string Carpeta = "Assets/Murther";
     const string ModeloRig = Carpeta + "/Modelos/Muther_rig_IK.fbx";
     const string AnimIdle = Carpeta + "/Modelos/Iddle.fbx";
@@ -25,30 +24,24 @@ public static class ConfiguradorFase1
     const float AlturaMurther = 1.95f;     // altura visible (silueta real) de Murther, en metros
     static readonly float[] SueloFrac = { 0.03f, 0.03f, 0.03f };   // suelo sobre el borde inferior del fondo
 
-    [InitializeOnLoadMethod]
-    static void AutoEjecutar()
-    {
-        EditorApplication.delayCall += Intentar;
-        EditorApplication.playModeStateChanged += estado =>
-        {
-            if (estado == PlayModeStateChange.EnteredEditMode) EditorApplication.delayCall += Intentar;
-        };
-    }
-
-    static void Intentar()
-    {
-        if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling) return;
-        string clave = "Fase1Version_" + PlayerSettings.productGUID;
-        if (EditorPrefs.GetInt(clave, 0) >= Version) return;
-        if (!File.Exists(ModeloRig) || !File.Exists(AnimIdle) || !File.Exists(AnimSalto)
-            || !File.Exists("Assets/Scenes/Nivel1.unity") || !File.Exists(PantallasCarga + "1.png")) return;
-        EditorPrefs.SetInt(clave, Version);     // una sola vez; si falla, usa el menú
-        Ejecutar();
-    }
-
+    // Antes se ejecutaba sola ([InitializeOnLoadMethod]) la primera vez que el proyecto se abría en cada
+    // computadora (la marca vivía en EditorPrefs, que es local). Cada vez borraba y volvía a crear el
+    // Animator Controller, los materiales y a Murther con GUIDs nuevos, y rehacía las pantallas de carga:
+    // se perdían los ajustes hechos a mano y cada integrante subía cambios distintos. Ahora solo desde el menú.
     [MenuItem("Juego/Fase 1 - Murther y escala de niveles")]
     public static void Ejecutar()
     {
+        if (!File.Exists(ModeloRig) || !File.Exists(AnimIdle) || !File.Exists(AnimSalto)
+            || !File.Exists("Assets/Scenes/Nivel1.unity") || !File.Exists(PantallasCarga + "1.png"))
+        {
+            Debug.LogError("Fase 1: faltan el modelo, las animaciones, las pantallas de carga o Assets/Scenes/Nivel1.unity.");
+            return;
+        }
+        if (!Application.isBatchMode && !EditorUtility.DisplayDialog("Fase 1 - Murther y escala de niveles",
+                "Se vuelven a crear Murther (Nivel1), el suelo y las paredes de los tres niveles, las pantallas de carga, " +
+                "el Animator Controller y los materiales de Murther y de la tinta.\n\nSe pierden los ajustes hechos a mano en todo eso.",
+                "Rehacer", "Cancelar"))
+            return;
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
         foreach (var r in new[] { ModeloRig, AnimIdle, AnimSalto })
@@ -256,8 +249,11 @@ public static class ConfiguradorFase1
         }
         var b = sr.bounds;
         CrearCaja("Suelo", new Vector3(b.center.x, -1f, 0f), new Vector2(b.size.x + 6f, 2f));
-        CrearCaja("ParedIzquierda", new Vector3(b.min.x - 0.5f, AlturaMundo * 0.5f, 0f), new Vector2(1f, AlturaMundo * 3f));
-        CrearCaja("ParedDerecha", new Vector3(b.max.x + 0.5f, AlturaMundo * 0.5f, 0f), new Vector2(1f, AlturaMundo * 3f));
+        // Las paredes quedan 0.7 m dentro del borde del fondo: el casco de Murther es más ancho que su
+        // collider y, con la pared justo en el borde, la mitad de él salía del cuadro al llegar a la orilla.
+        const float margen = 0.7f;
+        CrearCaja("ParedIzquierda", new Vector3(b.min.x - 0.5f + margen, AlturaMundo * 0.5f, 0f), new Vector2(1f, AlturaMundo * 3f));
+        CrearCaja("ParedDerecha", new Vector3(b.max.x + 0.5f - margen, AlturaMundo * 0.5f, 0f), new Vector2(1f, AlturaMundo * 3f));
     }
 
     static void CrearCaja(string nombre, Vector3 pos, Vector2 tam)
@@ -285,12 +281,17 @@ public static class ConfiguradorFase1
 
         // Luz para el modelo 3D
         var luzGO = new GameObject("Luz Direccional");
-        luzGO.transform.rotation = Quaternion.Euler(35f, -25f, 0f);
+        // Desde el frente y arriba (simétrica): Murther se ve igual hacia los dos lados. Con 1.3 de intensidad,
+        // luz lateral y ambiente plano de 0.55 el casco se quemaba en blanco puro y perdía todo el volumen.
+        luzGO.transform.rotation = Quaternion.Euler(40f, 0f, 0f);
         var luz = luzGO.AddComponent<Light>();
         luz.type = LightType.Directional;
-        luz.intensity = 1.3f;
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.55f, 0.55f, 0.62f);
+        luz.intensity = 1.05f;
+        luz.color = new Color(1f, 0.96f, 0.9f);
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = new Color(0.4f, 0.4f, 0.432f);
+        RenderSettings.ambientEquatorColor = new Color(0.28f, 0.28f, 0.302f);
+        RenderSettings.ambientGroundColor = new Color(0.1f, 0.1f, 0.108f);
 
         var fondo = BuscarRaiz(escena, "Fondo").GetComponent<SpriteRenderer>();
 
@@ -372,7 +373,8 @@ public static class ConfiguradorFase1
 
         var ctrl = raiz.AddComponent<MurtherController>();
         ctrl.visual = visual;
-        ctrl.giroBase = 0f;     // el giro se calibra solo (ojos respecto a la cabeza): de perfil al caminar
+        ctrl.giroBase = 0f;     // el giro se calibra solo (ojos respecto a la cabeza)
+        ctrl.giroHaciaCamara = 35f;   // 3/4: de perfil estricto la cara no se ve
         ctrl.animator = animator;
         ctrl.cabezaIdle = cabeza;
         ctrl.cabezaSalto = cabeza;
@@ -423,7 +425,7 @@ public static class ConfiguradorFase1
         bool negro = l.Contains("black") || l.Contains("negro");
         Color color = negro
             ? (l.Contains("abs") ? new Color(0.01f, 0.01f, 0.012f) : new Color(0.04f, 0.04f, 0.05f))
-            : new Color(0.93f, 0.93f, 0.9f);
+            : (l.Contains("shi") ? new Color(0.93f, 0.93f, 0.9f) : new Color(0.8f, 0.8f, 0.776f));   // casco al 80 %: no se quema
         string ruta = Carpeta + "/Materiales/Murther_" + nombre + ".mat";
         AssetDatabase.DeleteAsset(ruta);
         var m = new Material(Shader.Find("Universal Render Pipeline/Lit"));
