@@ -26,6 +26,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _AnchoBorde: 0
+    - _Contraluz: 3
     - _GrosorContorno: 0.025
     - _Suavidad: 0.03
     - _TamBrillo: 0
@@ -40,7 +41,7 @@ Material:
     - _ColorBorde: {r: 0, g: 0, b: 0, a: 1}
     - _ColorBrillo: {r: 1, g: 1, b: 1, a: 1}
     - _ColorContorno: {r: 0.02, g: 0.02, b: 0.03, a: 1}
-    - _ColorSombra: {r: 0.5, g: 0.42, b: 0.48, a: 1}
+    - _ColorSombra: {r: 0.34, g: 0.31, b: 0.38, a: 1}
     - _Emision: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

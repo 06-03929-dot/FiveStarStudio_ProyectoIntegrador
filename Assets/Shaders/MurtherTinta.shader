@@ -6,6 +6,9 @@
 //  - Contorno negro de grosor constante (casco invertido). Usa las normales suavizadas que
 //    NormalesSuavesContorno.cs guarda en los tangentes: así no se abre en las esquinas duras del cuerpo.
 //  - Borde de luz (rim) y brillo duro de tinta húmeda: separan el cuerpo negro del fondo negro.
+//  - Recibe la misma luz que el escenario: la luz de personaje toma el color de la luz que Murther lleva
+//    (MurtherController → Color Luz Tinta), las luces puntuales lo iluminan en bandas al pasar cerca
+//    (faroles, vitral) y las que quedan detrás de él le dibujan un contraluz en la silueta.
 // Pases de profundidad, normales y sombras incluidos para SSAO, el prepass y luces con sombra.
 Shader "Five Star/Murther Tinta"
 {
@@ -28,6 +31,9 @@ Shader "Five Star/Murther Tinta"
         [Header(Borde de luz)]
         _ColorBorde("Color", Color) = (0, 0, 0, 1)
         _AnchoBorde("Ancho", Range(0, 1)) = 0
+
+        [Header(Contraluz)]
+        _Contraluz("Contraluz de las luces de atras", Range(0, 6)) = 0
 
         [Header(Brillo duro)]
         _ColorBrillo("Color", Color) = (1, 1, 1, 1)
@@ -60,6 +66,7 @@ Shader "Five Star/Murther Tinta"
             half _AnchoBorde;
             half4 _ColorBrillo;
             half _TamBrillo;
+            half _Contraluz;
             half4 _ColorContorno;
             float _GrosorContorno;
         CBUFFER_END
@@ -87,6 +94,8 @@ Shader "Five Star/Murther Tinta"
             #pragma fragment Frag
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
+            #pragma multi_compile _ _ADDITIONAL_LIGHTS
+            #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
             #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -94,6 +103,7 @@ Shader "Five Star/Murther Tinta"
             // Luz de personaje que MurtherController actualiza cada cuadro (gira con Murther).
             // Si w = 0 (sin MurtherController en la escena) se usa la luz principal.
             float4 _LuzTintaDir;
+            float4 _LuzTintaColor;     // color lineal × intensidad; w = 0 → color de la luz principal
 
             struct Varyings
             {
@@ -134,6 +144,7 @@ Shader "Five Star/Murther Tinta"
                 float3 v = GetWorldSpaceNormalizeViewDir(i.positionWS);
                 Light luzP = GetMainLight(TransformWorldToShadowCoord(i.positionWS));
                 if (_LuzTintaDir.w > 0.5) luzP.direction = normalize(_LuzTintaDir.xyz);
+                if (_LuzTintaColor.w > 0.5) luzP.color = _LuzTintaColor.rgb;
 
                 // Bandas: medio Lambert con un corte casi duro, como el sombreado posterizado del fondo.
                 half medio = dot(n, luzP.direction) * 0.5h + 0.5h;
@@ -160,6 +171,22 @@ Shader "Five Star/Murther Tinta"
                 half nh = saturate(dot(n, h));
                 half brillo = smoothstep(1.0h - _TamBrillo - 0.004h, 1.0h - _TamBrillo + 0.004h, nh) * step(0.0001h, _TamBrillo);
                 col += _ColorBrillo.rgb * brillo * luzP.color * luzP.shadowAttenuation;
+
+            #if defined(_ADDITIONAL_LIGHTS)
+                // Luces puntuales de la escena: en bandas, como la luz principal. Las que quedan detrás
+                // (la que Murther proyecta sobre el muro) solo encienden el borde de la silueta.
+                InputData inputData = (InputData)0;
+                inputData.positionWS = i.positionWS;
+                inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(i.positionCS);
+                uint cantidad = GetAdditionalLightsCount();
+                LIGHT_LOOP_BEGIN(cantidad)
+                    Light l = GetAdditionalLight(lightIndex, i.positionWS);
+                    half3 c = l.color * l.distanceAttenuation;
+                    half m = dot(n, l.direction) * 0.5h + 0.5h;
+                    col += _BaseColor.rgb * c * smoothstep(_Umbral - _Suavidad, _Umbral + _Suavidad, m);
+                    col += c * _Contraluz * smoothstep(0.55h, 0.85h, fres) * saturate(dot(l.direction, -v));
+                LIGHT_LOOP_END
+            #endif
 
                 col += _Emision.rgb;
                 return half4(col, 1.0h);

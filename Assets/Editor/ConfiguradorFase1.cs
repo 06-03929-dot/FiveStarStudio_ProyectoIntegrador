@@ -517,13 +517,15 @@ public static class ConfiguradorFase1
             m.SetFloat("_AnchoBorde", 0.25f);
             m.SetColor("_ColorBrillo", new Color(0.5f, 0.5f, 0.58f));
             m.SetFloat("_TamBrillo", 0.025f);
+            m.SetFloat("_Contraluz", 3f);
             m.SetFloat("_GrosorContorno", 0.025f);
         }
         else
         {
-            // Casco y dientes: hueso claro, sombra malva como la del escenario y trama de tinta.
+            // Casco y dientes: hueso claro, sombra malva fría y oscura como la penumbra del escenario, trama de tinta.
             m.SetColor("_BaseColor", new Color(0.84f, 0.85f, 0.87f));
-            m.SetColor("_ColorSombra", new Color(0.5f, 0.42f, 0.48f));   // malva, como las sombras del fondo
+            m.SetColor("_ColorSombra", new Color(0.34f, 0.31f, 0.38f));   // malva, como las sombras del fondo
+            m.SetFloat("_Contraluz", 3f);
             m.SetFloat("_Umbral", 0.7f);
             m.SetFloat("_Trama", 0.75f);
             m.SetFloat("_TramaEscala", 7f);      // ~13 px entre líneas en 1080p: sin moiré

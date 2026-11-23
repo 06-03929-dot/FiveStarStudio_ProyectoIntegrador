@@ -216,7 +216,17 @@ public static class IluminacionFondos
             // así que solo ilumina el dibujo a su alrededor y descubre el relieve al caminar.
             // Cálida, como una vela: en el nivel 1 no hay ninguna fuente de luz dibujada y Murther la lleva consigo.
             go.transform.localPosition = new Vector3(0f, 1.6f, fondoGO.transform.position.z - 2.5f - murther.transform.position.z);
-            CrearLuzPuntual(go, new Color(1f, 0.82f, 0.6f), 10f, 12f);
+            var colorLuz = new Color(1f, 0.82f, 0.6f);
+            CrearLuzPuntual(go, colorLuz, 10f, 12f);
+            // La luz de personaje del shader de Murther toma el mismo tono (un poco menos saturado,
+            // para que el casco siga leyéndose como hueso).
+            var ctrl = murther.GetComponent<MurtherController>();
+            if (ctrl != null)
+            {
+                ctrl.colorLuzTinta = Color.Lerp(colorLuz, Color.white, 0.55f);
+                ctrl.intensidadLuzTinta = 1f;
+                EditorUtility.SetDirty(ctrl);
+            }
         }
 
         // Enemigos: el mismo shader sin relieve, para que la penumbra y las luces también caigan sobre ellos.

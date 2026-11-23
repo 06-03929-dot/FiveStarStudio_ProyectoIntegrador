@@ -131,7 +131,12 @@ public class MurtherController : MonoBehaviour
     // fija del mundo eso no es posible: hacia un lado la cara quedaría en sombra.
     [Header("Luz del shader de tinta (frente, arriba, hacia la cámara)")]
     public Vector3 luzTinta = new Vector3(0.75f, 0.6f, 0.3f);
+    // Color de esa luz: el mismo tono que la luz que Murther lleva consigo y que ilumina el muro a su
+    // alrededor, para que él y el escenario estén bajo la misma luz. Intensidad 0 = luz principal.
+    public Color colorLuzTinta = new Color(1f, 0.92f, 0.82f);
+    public float intensidadLuzTinta = 1f;
     static readonly int idLuzTinta = Shader.PropertyToID("_LuzTintaDir");
+    static readonly int idColorLuzTinta = Shader.PropertyToID("_LuzTintaColor");
 
     void ActualizarLuzTinta()
     {
@@ -142,9 +147,16 @@ public class MurtherController : MonoBehaviour
         Vector3 dir = frente * luzTinta.x + Vector3.up * luzTinta.y + Vector3.back * luzTinta.z;
         dir.Normalize();
         Shader.SetGlobalVector(idLuzTinta, new Vector4(dir.x, dir.y, dir.z, 1f));
+        // Las luces llegan al shader en espacio lineal (color.linear × intensidad): igual aquí.
+        Color c = colorLuzTinta.linear * intensidadLuzTinta;
+        Shader.SetGlobalVector(idColorLuzTinta, intensidadLuzTinta > 0f ? new Vector4(c.r, c.g, c.b, 1f) : Vector4.zero);
     }
 
-    void OnDisable() { Shader.SetGlobalVector(idLuzTinta, Vector4.zero); }
+    void OnDisable()
+    {
+        Shader.SetGlobalVector(idLuzTinta, Vector4.zero);
+        Shader.SetGlobalVector(idColorLuzTinta, Vector4.zero);
+    }
 
     void FixedUpdate()
     {

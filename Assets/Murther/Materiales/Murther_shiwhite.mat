@@ -26,6 +26,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _AnchoBorde: 0
+    - _Contraluz: 0
     - _GrosorContorno: 0
     - _Suavidad: 0.03
     - _TamBrillo: 0
