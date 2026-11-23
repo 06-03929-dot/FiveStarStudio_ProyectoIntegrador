@@ -13,6 +13,7 @@ Todo se hizo y verificó en **Unity 6000.3.23f1**: compilación sin errores ni a
 | `5568768` | 5. Documentos en `Docs/` y este README |
 | `e1c25bc` | 6. Revisión gráfica: shader de tinta para Murther |
 | `83d78d6` | 7. Revisión gráfica: post procesado y gotas de tinta |
+| `bf66903` | 8. Iluminación de los fondos 2D |
 | *(último)* | README y capturas actualizados |
 
 ## Comparación con `main`
@@ -158,7 +159,49 @@ La dirección de la luz de personaje se ajusta en `Murther` → `MurtherControll
 
 `Juego → Fase 1` crea todo esto igual (materiales, post procesado y texturas), así que volver a ejecutarlo no lo deshace.
 
-## 8. Cómo probar
+## 8. Iluminación de los fondos 2D
+
+Los fondos eran una imagen sin iluminar: el dibujo se veía igual en todas partes, como pegado detrás de Murther. Ahora la escena está en penumbra y las luces le dan forma: cada fuente de luz dibujada ilumina su zona con su color, el relieve del dibujo reacciona a la luz y lo que queda lejos se apaga.
+
+| Antes | Después |
+|---|---|
+| **Nivel 1:** Murther lleva una luz cálida; por el hueco se ven las columnas del vacío | |
+| ![Nivel 1 antes](Docs/Comparacion/iluminacion_antes_n1.jpg) | ![Nivel 1 después](Docs/Comparacion/iluminacion_despues_n1.jpg) |
+| **Nivel 2:** luz de luna en las ventanas | |
+| ![Nivel 2 antes](Docs/Comparacion/iluminacion_antes_n2.jpg) | ![Nivel 2 después](Docs/Comparacion/iluminacion_despues_n2.jpg) |
+| **Nivel 3:** el vitral ilumina; por el hueco se ve el bosque del limbo | |
+| ![Nivel 3 antes](Docs/Comparacion/iluminacion_antes_n3.jpg) | ![Nivel 3 después](Docs/Comparacion/iluminacion_despues_n3.jpg) |
+
+| Farol del nivel 2 (parpadea como llama) | Murther y un Corredor en el nivel 1 |
+|---|---|
+| ![Farol del nivel 2](Docs/Comparacion/iluminacion_farol_nivel2.jpg) | ![Murther y Corredor](Docs/Comparacion/iluminacion_murther_y_enemigo.jpg) |
+
+**Mapa de normales generado solo a partir del dibujo** (izquierda, la ilustración; derecha, el mapa):
+
+![Ilustración y su mapa de normales](Docs/Comparacion/iluminacion_mapa_normales.jpg)
+
+| Cambio | Por qué |
+|---|---|
+| Shader **`Five Star/Fondo Iluminado`** (`Assets/Shaders/FondoIluminado.shader`) en los fondos | El material de URP para sprites no recibe luz. Este usa la luz principal y las luces puntuales de la escena (Forward+), con el mapa de normales del dibujo. |
+| **Mapas de normales generados del dibujo** (`GeneradorNormalesFondo.cs`, en `Assets/Fondos/Normales`) | La altura sale de la propia ilustración: los contornos de tinta son los bordes de cada piedra, ladrillo o columna, y dentro de ellos la forma sube redondeada; lo que el artista pintó más claro queda más cerca. El punteado de los muros **no** cuenta como contorno (si contara, el muro se vería acolchado). Se guardan a la mitad de resolución (3.9 MB los cinco). **Los PNG originales no se modifican.** |
+| **Penumbra**: ambiente bajo y frío, luz principal casi apagada sobre los fondos | Como una escena con antorcha: lejos de las luces el dibujo queda a ~30 % de su brillo; cerca, sube a más del doble y toma el color de la luz. Es lo que hace que deje de verse como una ilustración pegada. Murther no cambia: su shader usa su propia luz. |
+| **Luces donde el dibujo tiene fuentes de luz** (*Luces del Escenario* en cada nivel) | Nivel 2: los dos faroles (cálidos, con parpadeo) y la luna en las dos ventanas. Nivel 3: el vitral amarillo y luz fría sobre el bosque. Nivel 1: el dibujo no tiene ninguna fuente de luz, así que **Murther lleva una luz cálida** (*Luz de Murther*) que descubre el relieve a su paso. |
+| **Capas traseras** que el equipo dibujó pero no estaban en la escena (*Fondo Lejano*) | *Columnas del vacío* (nivel 1) y *Bosque del limbo* (nivel 3) tienen el mismo lienzo que el fondo y llenan sus huecos transparentes, que antes se veían negros. Van más oscuras y frías, con **parallax** (`CapaParallax`): se mueven más lento que el fondo y dan profundidad. |
+| **Halo** de las luces sobre la tinta | Multiplicar la luz por un dibujo negro da negro: sin el halo las luces no se notaban en las zonas de tinta. |
+| **Bloom** (umbral 1.1) y viñeta 0.3 → 0.38 en `Niveles_PostProcesado` | Los cristales de los faroles y el vitral, al recibir mucha luz, resplandecen. El umbral queda por encima del blanco de Murther. |
+| Los Corredores usan el mismo shader, sin relieve (`GeneradorCorredores` → *Material Sprite*) | Si siguieran sin iluminar, brillarían al 100 % en medio de la penumbra. Solo se aplica en los niveles: en las pantallas de controles siguen igual. |
+| Los niveles 2 y 3 reciben una *Luz Direccional* | No tenían ninguna luz. |
+
+**Cómo ajustarlo** (sin tocar código):
+
+| Dónde | Qué |
+|---|---|
+| Materiales de `Assets/Fondos/Materiales` | *Luz ambiente* (qué tan oscura es la penumbra), *Fuerza de la luz principal*, *Relieve*, *Halo*, *Brillo húmedo*. `FondoLejano_*` son las capas traseras; `Sprite_Iluminado`, los enemigos. |
+| *Luces del Escenario* en cada nivel | Mover, cambiar color, intensidad y alcance. *Luz Parpadeo* → *Variación* controla el temblor. |
+| `Fondo Lejano` → `CapaParallax` → *Factor* | 0 = se mueve igual que el fondo; más alto = parece más lejos. |
+| **Juego → Iluminación de fondos** | *Aplicar a los tres niveles* rehace luces, capas y materiales (pide confirmación). *Regenerar mapas de normales* vuelve a crearlos si cambia un dibujo. *Fase 1* también la aplica al final. |
+
+## 9. Cómo probar
 
 1. `git switch Correcciones-sugeridas` y abrir el proyecto con Unity 6000.3.23f1. **No** debe aparecer ningún diálogo ni regenerarse ninguna escena.
 2. Abrir **MenuPrincipal** y dar Play:
@@ -166,9 +209,10 @@ La dirección de la luz de personaje se ajusta en `Murther` → `MurtherControll
    - Con flechas o control: navegar el menú, abrir **Créditos** y regresar con Esc/B, abrir **Cerrar Juego** y cancelar.
    - **Iniciar Juego** → cinemática (se salta con el botón, Esc, Start o B) → pantalla de carga → Nivel 1.
 3. En el **Nivel 1**: moverse con A/D, flechas o stick; saltar con Espacio, W o A del control; doble salto en el aire. Llegar a las dos orillas: Murther debe verse completo.
-4. Ajustar a gusto *Giro Hacia Camara* y *Luz Tinta* (`MurtherController`), los materiales de `Assets/Murther/Materiales` y el perfil `Assets/Settings/Niveles_PostProcesado`.
+4. Caminar por el Nivel 1 de una orilla a otra: la luz de Murther ilumina el muro y las columnas a su paso, y las columnas del fondo se desplazan más lento que el muro. Abrir Nivel2 y Nivel3 y mover la cámara en la vista de escena para ver los faroles y el vitral.
+5. Ajustar a gusto *Giro Hacia Camara* y *Luz Tinta* (`MurtherController`), los materiales de `Assets/Murther/Materiales` y `Assets/Fondos/Materiales`, las *Luces del Escenario* y el perfil `Assets/Settings/Niveles_PostProcesado`.
 
-## 9. Pendientes para el equipo (no aplicados)
+## 10. Pendientes para el equipo (no aplicados)
 
 Son decisiones de contenido o de diseño, así que se dejaron como estaban:
 
@@ -179,6 +223,7 @@ Son decisiones de contenido o de diseño, así que se dejaron como estaban:
 - **No hay pausa ni forma de volver al menú** desde un nivel.
 - **Prototipo anterior (`Assets/Assets/`, ~2400 líneas):** ninguna escena lo usa. Conviene decidir si se integra (vida, enemigos, flechas) o se borra.
 - **Raya clara en el costado del casco:** con el shader de tinta se ve una línea horizontal iluminada dentro de la sombra. Es un bisel del modelo que atrapa la luz; si no es intencional, se corrige en el modelo (Maya).
+- **Iluminación:** la penumbra es una decisión de ambientación; si se quiere más clara, basta subir *Luz ambiente* en los materiales de `Assets/Fondos/Materiales`. En los niveles 2 y 3 la cámara está fija en el centro y los faroles quedan justo fuera de cuadro; cuando esos niveles tengan a Murther y la cámara lo siga, se verán al caminar. Si el equipo agrega lámparas o antorchas al dibujo, conviene ponerles una luz en *Luces del Escenario*.
 - **Doble salto:** la cabeza sube 1.15 m y deja un hueco grande respecto al cuerpo. Si no es el efecto buscado, bajar *Altura Cabeza* en `MurtherController`.
 - `Juego → Fase 1` sigue creando el Animator Controller y los materiales con GUIDs nuevos cada vez que se ejecuta; solo debe usarse cuando haga falta rehacer a Murther.
 - `SampleScene.unity` sobra, y los paquetes `com.unity.ai.assistant` (pre) y `com.unity.pipeline` (experimental) son versiones de prueba.
