@@ -63,6 +63,7 @@ public static class ConfiguradorFase1
             var escena = EditorSceneManager.OpenScene("Assets/Scenes/Nivel" + n + ".unity", OpenSceneMode.Single);
             AjustarEscenario(escena, n);
             if (n == 1) ColocarMurther(escena, controlador, matGota, matMancha, fisica);
+            IluminacionFondos.Aplicar(escena, n);    // después de Murther: la luz que lo acompaña es hija suya
             EditorSceneManager.SaveScene(escena);
         }
 
