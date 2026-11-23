@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Collider), typeof(Rigidbody))]
 public class PlayerController3D : MonoBehaviour
@@ -95,13 +96,22 @@ public class PlayerController3D : MonoBehaviour
     // ---------- ENTRADA (solo lectura, la física va en FixedUpdate) ----------
     void Update()
     {
-        keyH = Input.GetAxisRaw("Horizontal");
-        keyV = Input.GetAxisRaw("Vertical");
+        // El proyecto usa el Input System nuevo (el Input Manager clásico está desactivado).
+        var k = Keyboard.current;
+        var g = Gamepad.current;
+        keyH = Eje(k != null && (k.aKey.isPressed || k.leftArrowKey.isPressed), k != null && (k.dKey.isPressed || k.rightArrowKey.isPressed));
+        keyV = Eje(k != null && (k.sKey.isPressed || k.downArrowKey.isPressed), k != null && (k.wKey.isPressed || k.upArrowKey.isPressed));
+        if (g != null)
+        {
+            Vector2 s = g.leftStick.ReadValue();
+            if (Mathf.Abs(s.x) > 0.2f) keyH = s.x;
+            if (Mathf.Abs(s.y) > 0.2f) keyV = s.y;
+        }
 
-        if (Input.GetButtonDown("Jump")) OnJumpPressed();
-        if (Input.GetButtonUp("Jump")) OnJumpReleased();
-        if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.J)) OnDashPressed();
-        if (Input.GetKeyDown(KeyCode.K) || Input.GetKeyDown(KeyCode.X)) OnAttackPressed();
+        if ((k != null && k.spaceKey.wasPressedThisFrame) || (g != null && g.buttonSouth.wasPressedThisFrame)) OnJumpPressed();
+        if ((k != null && k.spaceKey.wasReleasedThisFrame) || (g != null && g.buttonSouth.wasReleasedThisFrame)) OnJumpReleased();
+        if ((k != null && (k.leftShiftKey.wasPressedThisFrame || k.jKey.wasPressedThisFrame)) || (g != null && g.buttonEast.wasPressedThisFrame)) OnDashPressed();
+        if ((k != null && (k.kKey.wasPressedThisFrame || k.xKey.wasPressedThisFrame)) || (g != null && g.buttonWest.wasPressedThisFrame)) OnAttackPressed();
 
         // El modelo gira suavemente hacia donde caminas
         if (visual != null)
@@ -373,4 +383,6 @@ public class PlayerController3D : MonoBehaviour
         GetWallBox(-1, out center, out half);
         Gizmos.DrawWireCube(center, half * 2f);
     }
+
+    static float Eje(bool negativo, bool positivo) { return (positivo ? 1f : 0f) - (negativo ? 1f : 0f); }
 }
