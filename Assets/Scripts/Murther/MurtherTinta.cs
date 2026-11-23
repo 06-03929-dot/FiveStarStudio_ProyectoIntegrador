@@ -8,7 +8,9 @@ public class MurtherTinta : MonoBehaviour
 {
     public Material materialGota;
     public Material materialMancha;
-    public Color colorTinta = new Color(0.03f, 0.03f, 0.07f, 1f);
+    // Blanco = los colores de la textura tal cual (núcleo negro y reflejo de tinta húmeda). Antes era casi
+    // negro y multiplicaba todo, así que el reflejo y el borde de las gotas tampoco se veían.
+    public Color colorTinta = Color.white;
     public float distanciaEntreManchas = 0.45f;
     public float alturaPies = 0.03f;
     public float escalaTinta = 1.3f;        // tamaño de gotas y manchas
