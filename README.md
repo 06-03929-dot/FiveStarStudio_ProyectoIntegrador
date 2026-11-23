@@ -14,6 +14,7 @@ Todo se hizo y verificó en **Unity 6000.3.23f1**: compilación sin errores ni a
 | `e1c25bc` | 6. Revisión gráfica: shader de tinta para Murther |
 | `83d78d6` | 7. Revisión gráfica: post procesado y gotas de tinta |
 | `bf66903` | 8. Iluminación de los fondos 2D |
+| `b597c9d` | 8. Iluminación: Murther bajo la misma luz que el escenario |
 | *(último)* | README y capturas actualizados |
 
 ## Comparación con `main`
@@ -141,7 +142,7 @@ Los cuatro materiales de `Assets/Murther/Materiales` conservan su GUID: la escen
 | *Borde de luz*, *Brillo duro* | Separación del cuerpo negro contra el fondo. |
 | *Contorno → Grosor* | En metros; 0 lo quita. |
 
-La dirección de la luz de personaje se ajusta en `Murther` → `MurtherController` → *Luz Tinta* (frente, arriba, hacia la cámara).
+La dirección de la luz de personaje se ajusta en `Murther` → `MurtherController` → *Luz Tinta* (frente, arriba, hacia la cámara), y su color en *Color Luz Tinta* (ver sección 8).
 
 ## 7. Revisión gráfica: post procesado y gotas de tinta
 
@@ -191,6 +192,19 @@ Los fondos eran una imagen sin iluminar: el dibujo se veía igual en todas parte
 | **Bloom** (umbral 1.1) y viñeta 0.3 → 0.38 en `Niveles_PostProcesado` | Los cristales de los faroles y el vitral, al recibir mucha luz, resplandecen. El umbral queda por encima del blanco de Murther. |
 | Los Corredores usan el mismo shader, sin relieve (`GeneradorCorredores` → *Material Sprite*) | Si siguieran sin iluminar, brillarían al 100 % en medio de la penumbra. Solo se aplica en los niveles: en las pantallas de controles siguen igual. |
 | Los niveles 2 y 3 reciben una *Luz Direccional* | No tenían ninguna luz. |
+
+**Murther bajo la misma luz.** Con el escenario en penumbra, Murther seguía con su luz blanca y su sombra malva clara: era lo único a pleno brillo y volvía a verse pegado encima.
+
+| Antes | Después |
+|---|---|
+| ![Murther antes del ajuste de luz](Docs/Comparacion/iluminacion_murther_antes.jpg) | ![Murther bajo la luz del escenario](Docs/Comparacion/iluminacion_murther_despues.jpg) |
+
+| Cambio | Por qué |
+|---|---|
+| La luz de personaje toma el **color de la luz que Murther lleva** (`MurtherController` → *Color Luz Tinta*, *Intensidad Luz Tinta*) | El casco y el muro a su alrededor quedan bajo la misma luz cálida de vela, un poco menos saturada en el casco para que siga leyéndose como hueso. Intensidad 0 vuelve a la luz principal. |
+| **Sombra del casco más oscura y fría** (0.5, 0.42, 0.48 → 0.34, 0.31, 0.38) | La sombra malva clara brillaba más que las zonas iluminadas del fondo. Ahora cae en el mismo tono que la penumbra; la trama sigue igual. |
+| El shader recibe las **luces puntuales** de la escena, en bandas | Al pasar junto a un farol o el vitral, Murther toma su color como el muro. |
+| **Contraluz** (*Contraluz* en los materiales del casco y del cuerpo) | La luz que Murther proyecta sobre el muro queda detrás de él y le enciende el borde de la silueta: lo separa del fondo oscuro sin recortarlo con una línea fija. |
 
 **Cómo ajustarlo** (sin tocar código):
 
