@@ -33,6 +33,7 @@ public class MurtherController : MonoBehaviour
     public Transform cabezaIdle;
     public Transform cabezaSalto;
     public float giroBase = 0f;            // ajuste manual extra (el giro se calibra solo con los ojos)
+    [Range(0f, 60f)] public float giroHaciaCamara = 35f;  // 0 = perfil estricto; 35 = vista de 3/4 (se ve la cara)
     public float velocidadGiro = 900f;     // grados por segundo
 
     [Header("Doble salto: sube la cabeza y el cuerpo la alcanza")]
@@ -55,11 +56,12 @@ public class MurtherController : MonoBehaviour
     float entradaH, bufferT, coyoteT, efectoT = 99f, yawModelo;
     int saltosUsados;
     bool cortarSalto, usaPoseSalto;
-    Vector3 cabezaPosAplicada, cabezaOffsetAplicado;
+    Vector3 cabezaPosAplicada, cabezaOffsetAplicado, escalaVisual = Vector3.one;
     Transform cabezaActiva;
 
     void Awake()
     {
+        if (visual != null) escalaVisual = visual.localScale;
         rb = GetComponent<Rigidbody2D>();
         col = GetComponent<CapsuleCollider2D>();
         rb.freezeRotation = true;
@@ -238,7 +240,10 @@ public class MurtherController : MonoBehaviour
     void AplicarGiro(bool inmediato)
     {
         if (visual == null) return;
-        var destino = Quaternion.Euler(0f, yawModelo + (Direccion > 0f ? 0f : 180f) + giroBase, 0f);
+        // giroHaciaCamara gira la cara hacia el jugador hacia los dos lados (de perfil estricto el casco
+        // se veía como un rectángulo blanco sin ojos ni dientes). Al voltear pasa por el frente.
+        float yaw = Direccion > 0f ? giroHaciaCamara : 180f - giroHaciaCamara;
+        var destino = Quaternion.Euler(0f, yawModelo + yaw + giroBase, 0f);
         visual.localRotation = inmediato
             ? destino
             : Quaternion.RotateTowards(visual.localRotation, destino, velocidadGiro * Time.deltaTime);
@@ -263,9 +268,9 @@ public class MurtherController : MonoBehaviour
         }
         else if (visual != null)
         {
-            // Sin hueso de cabeza: estirar el cuerpo hacia arriba desde los pies.
-            var e = visual.localScale;
-            visual.localScale = new Vector3(e.x, 1f + 0.3f * k, e.z);
+            // Sin hueso de cabeza: estirar el cuerpo hacia arriba desde los pies, respecto a la escala
+            // original de "Visual" (antes la Y se fijaba en 1 y se perdía cualquier escala que tuviera).
+            visual.localScale = new Vector3(escalaVisual.x, escalaVisual.y * (1f + 0.3f * k), escalaVisual.z);
         }
     }
 
