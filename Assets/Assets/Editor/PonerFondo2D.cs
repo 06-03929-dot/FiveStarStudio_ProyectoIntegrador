@@ -21,7 +21,7 @@ public class PonerFondo2D : EditorWindow
     public Capa cerca = new Capa { etiqueta = "Fondo cercano (árboles, detalles)", distancia = 65f, parallax = 0.18f };
     Vector2 scroll;
 
-    [MenuItem("Juego/Prototipo anterior/Poner fondo 2D")]
+    [MenuItem("Juego/Poner fondo 2D")]
     static void Abrir() => GetWindow<PonerFondo2D>("Fondo 2D");
 
     void OnGUI()

@@ -9,7 +9,7 @@ using Object = UnityEngine.Object;
 // Menú: Juego > Crear escena de prueba
 public static class CrearEscenaDePrueba
 {
-    [MenuItem("Juego/Prototipo anterior/Crear escena de prueba")]
+    [MenuItem("Juego/Crear escena de prueba")]
     public static void Crear()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
@@ -136,7 +136,7 @@ public static class CrearEscenaDePrueba
         CheckInputHandling();
     }
 
-    [MenuItem("Juego/Prototipo anterior/Borrar progreso guardado")]
+    [MenuItem("Juego/Borrar progreso guardado")]
     public static void BorrarProgreso()
     {
         foreach (string k in new[] { "NivelGuardado", "VidaGuardada", "PosXGuardada", "PosYGuardada", "EnemigosVivos" })

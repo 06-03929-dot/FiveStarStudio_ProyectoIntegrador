@@ -4,31 +4,6 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes:
-  - enabled: 1
-    path: Assets/Scenes/MenuPrincipal.unity
-    guid: dd1d2daff204a3640b1a9028ea3d85e0
-  - enabled: 1
-    path: Assets/Scenes/Cinematica.unity
-    guid: 0eed695e80b2f9a48b5c267f693ecf05
-  - enabled: 1
-    path: Assets/Scenes/Controles_Nivel1.unity
-    guid: 0440d8839711aa64abe0bcc368392aa1
-  - enabled: 1
-    path: Assets/Scenes/Nivel1.unity
-    guid: afbef02ff1a15f24e865ef148dddcccc
-  - enabled: 1
-    path: Assets/Scenes/Controles_Nivel2.unity
-    guid: b80d3f22be6ada848be2b85b40d110b5
-  - enabled: 1
-    path: Assets/Scenes/Nivel2.unity
-    guid: 35358718d54a8454a907c3052381538e
-  - enabled: 1
-    path: Assets/Scenes/Controles_Nivel3.unity
-    guid: 22d45b29621dab64e8b206f9981bc037
-  - enabled: 1
-    path: Assets/Scenes/Nivel3.unity
-    guid: 085a4ebebbb3e8f4d9846879cf121a07
-  m_configObjects:
-    com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
+  m_Scenes: []
+  m_configObjects: {}
   m_UseUCBPForAssetBundles: 0

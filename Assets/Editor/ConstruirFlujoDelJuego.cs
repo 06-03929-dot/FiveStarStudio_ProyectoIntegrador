@@ -13,7 +13,7 @@ using UnityEngine.Video;
 
 // Genera las escenas del flujo (logos, menú, créditos, cinemática, controles, niveles)
 // y las registra en Build Settings. Menú: Juego > Construir flujo de escenas.
-// Solo se ejecuta desde el menú. Juego > Registrar escenas en Build Settings solo actualiza Build Settings.
+// Se ejecuta sola una vez si todavía no existe Assets/Scenes/MenuPrincipal.unity.
 public static class ConstruirFlujoDelJuego
 {
     const string CarpetaEscenas = "Assets/Scenes";
@@ -31,66 +31,58 @@ public static class ConstruirFlujoDelJuego
     static readonly Color ColorFondoVideo = new Color32(13, 13, 18, 255);   // fondo del video del logo
     // true: "Iniciar Juego" entra directo al Nivel 1. false: cinemática y pantalla de controles antes.
     const bool IniciarVaAlNivel1 = false;
-
-    // Orden del juego en Build Settings (la escena 0 es la que abre el ejecutable).
-    static readonly string[] OrdenEscenas =
-    {
-        "MenuPrincipal", "Cinematica",
-        "Controles_Nivel1", "Nivel1",
-        "Controles_Nivel2", "Nivel2",
-        "Controles_Nivel3", "Nivel3",
-    };
+    const int VersionFlujo = 6; // súbela para que el generador se vuelva a ejecutar solo
 
     static readonly Color Dorado = new Color(1f, 0.82f, 0.35f);
     static readonly Color Gris = new Color(0.82f, 0.82f, 0.86f);
     static readonly Color Negro = new Color(0.02f, 0.02f, 0.04f);
 
-    // Antes este generador se ejecutaba solo ([InitializeOnLoadMethod]) la primera vez que el proyecto se
-    // abría en cada computadora (la marca se guardaba en EditorPrefs, que es local), y volvía a crear
-    // TODAS las escenas desde cero: borraba a Murther, el suelo y los enemigos de los niveles y cualquier
-    // cambio hecho a mano. Ahora solo corre desde el menú, pide confirmación y no toca los niveles ni las
-    // pantallas de carga que ya existen.
+    [InitializeOnLoadMethod]
+    static void AutoConstruir()
+    {
+        EditorApplication.delayCall += IntentarConstruir;
+        // Si la recarga ocurrió durante Play, se reintenta al volver al modo edición.
+        EditorApplication.playModeStateChanged += estado =>
+        {
+            if (estado == PlayModeStateChange.EnteredEditMode) EditorApplication.delayCall += IntentarConstruir;
+        };
+    }
+
+    static void IntentarConstruir()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling) return;
+        string clave = "FlujoVersion_" + PlayerSettings.productGUID;
+        if (File.Exists(CarpetaEscenas + "/MenuPrincipal.unity") && EditorPrefs.GetInt(clave, 1) >= VersionFlujo) return;
+        if (Fondos.Any(f => !File.Exists(f)) || !File.Exists(RutaVideoLogo) || !File.Exists(RutaImagenMenu)) return;
+        Construir();
+        EditorPrefs.SetInt(clave, VersionFlujo);
+    }
+
     [MenuItem("Juego/Construir flujo de escenas")]
     public static void Construir()
     {
-        if (!Application.isBatchMode && !EditorUtility.DisplayDialog("Construir flujo de escenas",
-                "Se volverán a generar desde cero MenuPrincipal y Cinematica (se pierden los cambios hechos a mano en esas dos escenas).\n\n" +
-                "Las pantallas de carga y los niveles solo se crean si todavía no existen.",
-                "Regenerar", "Cancelar"))
-            return;
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
         if (!AssetDatabase.IsValidFolder(CarpetaEscenas)) AssetDatabase.CreateFolder("Assets", "Scenes");
 
         foreach (var f in Fondos) PrepararSprite(f);
         PrepararSprite(RutaImagenMenu);
 
-        ConstruirMenu();
-        ConstruirCinematica();
+        var rutas = new List<string>
+        {
+            ConstruirMenu(),
+            ConstruirCinematica(),
+        };
         for (int n = 1; n <= 3; n++)
         {
-            if (!File.Exists(Ruta("Controles_Nivel" + n))) ConstruirControles(n);
-            if (!File.Exists(Ruta("Nivel" + n))) ConstruirNivel(n);
+            rutas.Add(ConstruirControles(n));
+            rutas.Add(ConstruirNivel(n));
         }
 
-        RegistrarEscenas();
+        EditorBuildSettings.scenes = rutas.Select(r => new EditorBuildSettingsScene(r, true)).ToArray();
         AssetDatabase.SaveAssets();
-        EditorSceneManager.OpenScene(Ruta("MenuPrincipal"));
-        Debug.Log("Flujo construido: " + EditorBuildSettings.scenes.Length + " escenas en Build Settings. Abre MenuPrincipal y dale Play.");
+        EditorSceneManager.OpenScene(rutas[0]);
+        Debug.Log("Flujo construido: " + rutas.Count + " escenas en Build Settings. Abre MenuPrincipal y dale Play.");
     }
-
-    // Registra las escenas del juego, en orden, en Build Settings. Sin esto SceneManager.LoadScene
-    // no encuentra la escena (ni en el editor ni en el ejecutable) y el menú se queda en negro.
-    [MenuItem("Juego/Registrar escenas en Build Settings")]
-    public static void RegistrarEscenas()
-    {
-        var faltan = OrdenEscenas.Where(e => !File.Exists(Ruta(e))).ToArray();
-        if (faltan.Length > 0) Debug.LogWarning("No existen y no se registraron: " + string.Join(", ", faltan));
-        EditorBuildSettings.scenes = OrdenEscenas.Where(e => File.Exists(Ruta(e)))
-            .Select(e => new EditorBuildSettingsScene(Ruta(e), true)).ToArray();
-        Debug.Log("Build Settings: " + string.Join(" → ", EditorBuildSettings.scenes.Select(s => Path.GetFileNameWithoutExtension(s.path))));
-    }
-
-    static string Ruta(string escena) { return CarpetaEscenas + "/" + escena + ".unity"; }
 
     // ───────────── Sprites ─────────────
 
@@ -101,11 +93,7 @@ public static class ConstruirFlujoDelJuego
         imp.textureType = TextureImporterType.Sprite;
         imp.spriteImportMode = SpriteImportMode.Single;
         imp.spritePixelsPerUnit = 100f;
-        // Los fondos (~3900 px) se ven reducidos ~1.7x en 1080p: sin mipmaps las líneas de tinta
-        // parpadeaban al mover la cámara, y la compresión normal (DXT) les ponía bloques.
-        imp.mipmapEnabled = true;
-        imp.filterMode = FilterMode.Trilinear;
-        imp.textureCompression = TextureImporterCompression.CompressedHQ;
+        imp.mipmapEnabled = false;
         imp.maxTextureSize = 4096;
         imp.SaveAndReimport();
     }
