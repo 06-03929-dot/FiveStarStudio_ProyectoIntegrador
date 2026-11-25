@@ -22,8 +22,20 @@ public class BotonResaltado : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     void OnEnable() { resaltado = false; Aplicar(1f); }
     void OnDisable() { Aplicar(1f); }
 
-    public void OnPointerEnter(PointerEventData e) { resaltado = true; }
-    public void OnPointerExit(PointerEventData e) { resaltado = false; }
+    // El ratón mueve la selección: así nunca quedan dos botones resaltados a la vez
+    // (uno elegido con el control o las flechas y otro bajo el cursor).
+    public void OnPointerEnter(PointerEventData e)
+    {
+        resaltado = true;
+        if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(gameObject);
+    }
+
+    public void OnPointerExit(PointerEventData e)
+    {
+        resaltado = false;
+        if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject == gameObject)
+            EventSystem.current.SetSelectedGameObject(null);
+    }
     public void OnSelect(BaseEventData e) { resaltado = true; }
     public void OnDeselect(BaseEventData e) { resaltado = false; }
 

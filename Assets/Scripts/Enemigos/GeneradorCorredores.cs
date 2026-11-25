@@ -10,6 +10,7 @@ public class GeneradorCorredores : MonoBehaviour
     public float intervalo = 5f;
     public int maximoVivos = 4;
     public float profundidadZ = 0.5f;     // detrás del plano de Murther
+    public Material materialSprite;       // si se asigna, reemplaza el material del sprite (p. ej. uno iluminado)
 
     bool iniciado;
     float temporizador;
@@ -46,6 +47,8 @@ public class GeneradorCorredores : MonoBehaviour
         float x = cam.transform.position.x + lado * (mitad + 2f);
         var go = Instantiate(prefab, new Vector3(x, 0f, profundidadZ), Quaternion.identity);
         go.name = "Corredor";
+        if (materialSprite != null)
+            foreach (var sr in go.GetComponentsInChildren<SpriteRenderer>(true)) sr.sharedMaterial = materialSprite;
         var c = go.GetComponent<EnemigoCorredor>();
         if (c == null) c = go.AddComponent<EnemigoCorredor>();
         c.Iniciar(-lado);                 // sale del lado izquierdo corriendo a la derecha, y al revés
