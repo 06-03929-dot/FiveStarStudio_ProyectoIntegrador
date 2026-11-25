@@ -33,7 +33,6 @@ public class MurtherController : MonoBehaviour
     public Transform cabezaIdle;
     public Transform cabezaSalto;
     public float giroBase = 0f;            // ajuste manual extra (el giro se calibra solo con los ojos)
-    [Range(0f, 60f)] public float giroHaciaCamara = 35f;  // 0 = perfil estricto; 35 = vista de 3/4 (se ve la cara)
     public float velocidadGiro = 900f;     // grados por segundo
 
     [Header("Doble salto: sube la cabeza y el cuerpo la alcanza")]
@@ -56,12 +55,11 @@ public class MurtherController : MonoBehaviour
     float entradaH, bufferT, coyoteT, efectoT = 99f, yawModelo;
     int saltosUsados;
     bool cortarSalto, usaPoseSalto;
-    Vector3 cabezaPosAplicada, cabezaOffsetAplicado, escalaVisual = Vector3.one;
+    Vector3 cabezaPosAplicada, cabezaOffsetAplicado;
     Transform cabezaActiva;
 
     void Awake()
     {
-        if (visual != null) escalaVisual = visual.localScale;
         rb = GetComponent<Rigidbody2D>();
         col = GetComponent<CapsuleCollider2D>();
         rb.freezeRotation = true;
@@ -122,40 +120,7 @@ public class MurtherController : MonoBehaviour
 
         ActualizarModelo();
         AplicarGiro(false);
-        ActualizarLuzTinta();
         efectoT += Time.deltaTime;
-    }
-
-    // Luz de personaje para el shader "Five Star/Murther Tinta": gira con Murther, así la cara queda
-    // iluminada y el costado en sombra (con trama) mirando a cualquiera de los dos lados. Con una luz
-    // fija del mundo eso no es posible: hacia un lado la cara quedaría en sombra.
-    [Header("Luz del shader de tinta (frente, arriba, hacia la cámara)")]
-    public Vector3 luzTinta = new Vector3(0.75f, 0.6f, 0.3f);
-    // Color de esa luz: el mismo tono que la luz que Murther lleva consigo y que ilumina el muro a su
-    // alrededor, para que él y el escenario estén bajo la misma luz. Intensidad 0 = luz principal.
-    public Color colorLuzTinta = new Color(1f, 0.92f, 0.82f);
-    public float intensidadLuzTinta = 1f;
-    static readonly int idLuzTinta = Shader.PropertyToID("_LuzTintaDir");
-    static readonly int idColorLuzTinta = Shader.PropertyToID("_LuzTintaColor");
-
-    void ActualizarLuzTinta()
-    {
-        if (visual == null) return;
-        // Hacia dónde apunta la cara ahora mismo (incluye el giro en curso al voltear).
-        float yaw = visual.localEulerAngles.y - yawModelo - giroBase;
-        Vector3 frente = transform.rotation * (Quaternion.Euler(0f, yaw, 0f) * Vector3.right);
-        Vector3 dir = frente * luzTinta.x + Vector3.up * luzTinta.y + Vector3.back * luzTinta.z;
-        dir.Normalize();
-        Shader.SetGlobalVector(idLuzTinta, new Vector4(dir.x, dir.y, dir.z, 1f));
-        // Las luces llegan al shader en espacio lineal (color.linear × intensidad): igual aquí.
-        Color c = colorLuzTinta.linear * intensidadLuzTinta;
-        Shader.SetGlobalVector(idColorLuzTinta, intensidadLuzTinta > 0f ? new Vector4(c.r, c.g, c.b, 1f) : Vector4.zero);
-    }
-
-    void OnDisable()
-    {
-        Shader.SetGlobalVector(idLuzTinta, Vector4.zero);
-        Shader.SetGlobalVector(idColorLuzTinta, Vector4.zero);
     }
 
     void FixedUpdate()
@@ -273,10 +238,7 @@ public class MurtherController : MonoBehaviour
     void AplicarGiro(bool inmediato)
     {
         if (visual == null) return;
-        // giroHaciaCamara gira la cara hacia el jugador hacia los dos lados (de perfil estricto el casco
-        // se veía como un rectángulo blanco sin ojos ni dientes). Al voltear pasa por el frente.
-        float yaw = Direccion > 0f ? giroHaciaCamara : 180f - giroHaciaCamara;
-        var destino = Quaternion.Euler(0f, yawModelo + yaw + giroBase, 0f);
+        var destino = Quaternion.Euler(0f, yawModelo + (Direccion > 0f ? 0f : 180f) + giroBase, 0f);
         visual.localRotation = inmediato
             ? destino
             : Quaternion.RotateTowards(visual.localRotation, destino, velocidadGiro * Time.deltaTime);
@@ -301,9 +263,9 @@ public class MurtherController : MonoBehaviour
         }
         else if (visual != null)
         {
-            // Sin hueso de cabeza: estirar el cuerpo hacia arriba desde los pies, respecto a la escala
-            // original de "Visual" (antes la Y se fijaba en 1 y se perdía cualquier escala que tuviera).
-            visual.localScale = new Vector3(escalaVisual.x, escalaVisual.y * (1f + 0.3f * k), escalaVisual.z);
+            // Sin hueso de cabeza: estirar el cuerpo hacia arriba desde los pies.
+            var e = visual.localScale;
+            visual.localScale = new Vector3(e.x, 1f + 0.3f * k, e.z);
         }
     }
 

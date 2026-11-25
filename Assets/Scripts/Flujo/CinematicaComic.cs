@@ -38,11 +38,8 @@ public class CinematicaComic : MonoBehaviour
         int restante = Mathf.CeilToInt(Mathf.Max(0f, duracionTotal - t));
         textoTiempo.text = (restante / 60) + ":" + (restante % 60).ToString("00");
 
-        // Con control no había forma de saltarla (el botón "Saltar" no queda seleccionado): Start o B.
         var k = Keyboard.current;
-        var g = Gamepad.current;
-        if ((k != null && k.escapeKey.wasPressedThisFrame)
-            || (g != null && (g.startButton.wasPressedThisFrame || g.buttonEast.wasPressedThisFrame))) Saltar();
+        if (k != null && k.escapeKey.wasPressedThisFrame) Saltar();
         if (t >= duracionTotal) Saltar();
     }
 
