@@ -6,15 +6,16 @@ using UnityEditor.Animations;
 using UnityEditor.Events;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 // Fase 1: escala de los fondos de Nivel1-3, pantallas de carga (2 s) antes de cada nivel y
 // Murther en Nivel1 (modelo con huesos, animaciones Idle/Salto, movimiento, doble salto y tinta).
-// Menú: Juego > Fase 1 - Murther y escala de niveles. Se ejecuta sola una vez por versión.
+// Menú: Juego > Fase 1 - Murther y escala de niveles (solo manual, pide confirmación).
 public static class ConfiguradorFase1
 {
-    const int Version = 4;
     const string Carpeta = "Assets/Murther";
     const string ModeloRig = Carpeta + "/Modelos/Muther_rig_IK.fbx";
     const string AnimIdle = Carpeta + "/Modelos/Iddle.fbx";
@@ -25,30 +26,24 @@ public static class ConfiguradorFase1
     const float AlturaMurther = 1.95f;     // altura visible (silueta real) de Murther, en metros
     static readonly float[] SueloFrac = { 0.03f, 0.03f, 0.03f };   // suelo sobre el borde inferior del fondo
 
-    [InitializeOnLoadMethod]
-    static void AutoEjecutar()
-    {
-        EditorApplication.delayCall += Intentar;
-        EditorApplication.playModeStateChanged += estado =>
-        {
-            if (estado == PlayModeStateChange.EnteredEditMode) EditorApplication.delayCall += Intentar;
-        };
-    }
-
-    static void Intentar()
-    {
-        if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling) return;
-        string clave = "Fase1Version_" + PlayerSettings.productGUID;
-        if (EditorPrefs.GetInt(clave, 0) >= Version) return;
-        if (!File.Exists(ModeloRig) || !File.Exists(AnimIdle) || !File.Exists(AnimSalto)
-            || !File.Exists("Assets/Scenes/Nivel1.unity") || !File.Exists(PantallasCarga + "1.png")) return;
-        EditorPrefs.SetInt(clave, Version);     // una sola vez; si falla, usa el menú
-        Ejecutar();
-    }
-
+    // Antes se ejecutaba sola ([InitializeOnLoadMethod]) la primera vez que el proyecto se abría en cada
+    // computadora (la marca vivía en EditorPrefs, que es local). Cada vez borraba y volvía a crear el
+    // Animator Controller, los materiales y a Murther con GUIDs nuevos, y rehacía las pantallas de carga:
+    // se perdían los ajustes hechos a mano y cada integrante subía cambios distintos. Ahora solo desde el menú.
     [MenuItem("Juego/Fase 1 - Murther y escala de niveles")]
     public static void Ejecutar()
     {
+        if (!File.Exists(ModeloRig) || !File.Exists(AnimIdle) || !File.Exists(AnimSalto)
+            || !File.Exists("Assets/Scenes/Nivel1.unity") || !File.Exists(PantallasCarga + "1.png"))
+        {
+            Debug.LogError("Fase 1: faltan el modelo, las animaciones, las pantallas de carga o Assets/Scenes/Nivel1.unity.");
+            return;
+        }
+        if (!Application.isBatchMode && !EditorUtility.DisplayDialog("Fase 1 - Murther y escala de niveles",
+                "Se vuelven a crear Murther (Nivel1), el suelo y las paredes de los tres niveles, las pantallas de carga, " +
+                "el Animator Controller y los materiales de Murther y de la tinta.\n\nSe pierden los ajustes hechos a mano en todo eso.",
+                "Rehacer", "Cancelar"))
+            return;
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
         foreach (var r in new[] { ModeloRig, AnimIdle, AnimSalto })
@@ -68,6 +63,7 @@ public static class ConfiguradorFase1
             var escena = EditorSceneManager.OpenScene("Assets/Scenes/Nivel" + n + ".unity", OpenSceneMode.Single);
             AjustarEscenario(escena, n);
             if (n == 1) ColocarMurther(escena, controlador, matGota, matMancha, fisica);
+            IluminacionFondos.Aplicar(escena, n);    // después de Murther: la luz que lo acompaña es hija suya
             EditorSceneManager.SaveScene(escena);
         }
 
@@ -172,7 +168,13 @@ public static class ConfiguradorFase1
                 }
                 float a = Mathf.Clamp01((limite - r) / 0.12f);
                 float borde = Mathf.Clamp01(1f - (limite - r) / 0.3f);
-                var c = Color.Lerp(new Color(0.02f, 0.02f, 0.05f), new Color(0.28f, 0.28f, 0.38f), borde * borde);
+                var c = Color.Lerp(new Color(0.02f, 0.02f, 0.05f), new Color(0.16f, 0.16f, 0.22f), borde * borde);
+                // Reflejo de tinta húmeda (arriba a la izquierda): sin él, las gotas negras desaparecían
+                // sobre las zonas negras del fondo. El color va en la textura (MurtherTinta emite en blanco).
+                float hx = (nx + (mancha ? 0.25f : 0.3f)) / (mancha ? 0.34f : 0.2f);
+                float hy = (ny - (mancha ? 0.22f : 0.32f)) / (mancha ? 0.1f : 0.16f);
+                float reflejo = Mathf.Clamp01((1f - Mathf.Sqrt(hx * hx + hy * hy)) / 0.45f) * (mancha ? 0.5f : 0.9f);
+                c = Color.Lerp(c, new Color(0.86f, 0.87f, 0.95f), reflejo);
                 c.a = a;
                 tex.SetPixel(x, y, c);
             }
@@ -256,8 +258,56 @@ public static class ConfiguradorFase1
         }
         var b = sr.bounds;
         CrearCaja("Suelo", new Vector3(b.center.x, -1f, 0f), new Vector2(b.size.x + 6f, 2f));
-        CrearCaja("ParedIzquierda", new Vector3(b.min.x - 0.5f, AlturaMundo * 0.5f, 0f), new Vector2(1f, AlturaMundo * 3f));
-        CrearCaja("ParedDerecha", new Vector3(b.max.x + 0.5f, AlturaMundo * 0.5f, 0f), new Vector2(1f, AlturaMundo * 3f));
+        // Las paredes quedan 0.7 m dentro del borde del fondo: el casco de Murther es más ancho que su
+        // collider y, con la pared justo en el borde, la mitad de él salía del cuadro al llegar a la orilla.
+        const float margen = 0.7f;
+        CrearCaja("ParedIzquierda", new Vector3(b.min.x - 0.5f + margen, AlturaMundo * 0.5f, 0f), new Vector2(1f, AlturaMundo * 3f));
+        CrearCaja("ParedDerecha", new Vector3(b.max.x + 0.5f - margen, AlturaMundo * 0.5f, 0f), new Vector2(1f, AlturaMundo * 3f));
+
+        AplicarPostProcesado(escena);
+    }
+
+    // ───────────── Post procesado de los niveles ─────────────
+
+    const string RutaPerfilPost = "Assets/Settings/Niveles_PostProcesado.asset";
+
+    // Viñeta y grano de papel: el grano cae igual sobre el dibujo y sobre Murther (3D), así los dos
+    // parecen impresos en la misma hoja; la viñeta oscurece las orillas como en el menú.
+    // No se usa tonemapping ni color grading: cambiarían los colores del dibujo de los fondos.
+    public static void AplicarPostProcesado(Scene escena)
+    {
+        var perfil = AssetDatabase.LoadAssetAtPath<VolumeProfile>(RutaPerfilPost);
+        if (perfil == null)
+        {
+            perfil = ScriptableObject.CreateInstance<VolumeProfile>();
+            AssetDatabase.CreateAsset(perfil, RutaPerfilPost);
+            var vineta = perfil.Add<Vignette>(true);
+            vineta.intensity.value = 0.3f;
+            vineta.smoothness.value = 0.5f;
+            vineta.color.value = Color.black;
+            var grano = perfil.Add<FilmGrain>(true);
+            grano.type.value = FilmGrainLookup.Thin2;
+            grano.intensity.value = 0.18f;
+            grano.response.value = 0.75f;
+            foreach (var c in perfil.components) AssetDatabase.AddObjectToAsset(c, perfil);
+            EditorUtility.SetDirty(perfil);
+            AssetDatabase.SaveAssets();
+        }
+
+        var volGO = BuscarRaiz(escena, "Volumen Global");
+        if (volGO == null) { volGO = new GameObject("Volumen Global"); SceneManager.MoveGameObjectToScene(volGO, escena); }
+        var vol = volGO.GetComponent<Volume>();
+        if (vol == null) vol = volGO.AddComponent<Volume>();
+        vol.isGlobal = true;
+        vol.sharedProfile = perfil;
+
+        var camGO = BuscarRaiz(escena, "Main Camera");
+        if (camGO != null)
+        {
+            var datos = camGO.GetComponent<Camera>().GetUniversalAdditionalCameraData();
+            datos.renderPostProcessing = true;    // sin esto la cámara ignora cualquier Volume
+            EditorUtility.SetDirty(datos);
+        }
     }
 
     static void CrearCaja(string nombre, Vector3 pos, Vector2 tam)
@@ -285,12 +335,17 @@ public static class ConfiguradorFase1
 
         // Luz para el modelo 3D
         var luzGO = new GameObject("Luz Direccional");
-        luzGO.transform.rotation = Quaternion.Euler(35f, -25f, 0f);
+        // Desde el frente y arriba (simétrica): Murther se ve igual hacia los dos lados. Con 1.3 de intensidad,
+        // luz lateral y ambiente plano de 0.55 el casco se quemaba en blanco puro y perdía todo el volumen.
+        luzGO.transform.rotation = Quaternion.Euler(40f, 0f, 0f);
         var luz = luzGO.AddComponent<Light>();
         luz.type = LightType.Directional;
-        luz.intensity = 1.3f;
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.55f, 0.55f, 0.62f);
+        luz.intensity = 1.05f;
+        luz.color = new Color(1f, 0.98f, 0.95f);
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = new Color(0.4f, 0.4f, 0.432f);
+        RenderSettings.ambientEquatorColor = new Color(0.28f, 0.28f, 0.302f);
+        RenderSettings.ambientGroundColor = new Color(0.1f, 0.1f, 0.108f);
 
         var fondo = BuscarRaiz(escena, "Fondo").GetComponent<SpriteRenderer>();
 
@@ -372,7 +427,8 @@ public static class ConfiguradorFase1
 
         var ctrl = raiz.AddComponent<MurtherController>();
         ctrl.visual = visual;
-        ctrl.giroBase = 0f;     // el giro se calibra solo (ojos respecto a la cabeza): de perfil al caminar
+        ctrl.giroBase = 0f;     // el giro se calibra solo (ojos respecto a la cabeza)
+        ctrl.giroHaciaCamara = 35f;   // 3/4: de perfil estricto la cara no se ve
         ctrl.animator = animator;
         ctrl.cabezaIdle = cabeza;
         ctrl.cabezaSalto = cabeza;
@@ -399,7 +455,7 @@ public static class ConfiguradorFase1
                   + "\nPartes: " + ListarPartes(modelo));
     }
 
-    // El FBX trae los materiales con color base blanco; se reemplazan por materiales URP según su nombre.
+    // El FBX trae los materiales con color base blanco; se reemplazan por materiales de tinta según su nombre.
     static void AplicarMateriales(GameObject modelo)
     {
         if (!AssetDatabase.IsValidFolder(Carpeta + "/Materiales")) AssetDatabase.CreateFolder(Carpeta, "Materiales");
@@ -419,25 +475,65 @@ public static class ConfiguradorFase1
 
     static Material MaterialMurther(string nombre)
     {
-        string l = nombre.ToLowerInvariant();
-        bool negro = l.Contains("black") || l.Contains("negro");
-        Color color = negro
-            ? (l.Contains("abs") ? new Color(0.01f, 0.01f, 0.012f) : new Color(0.04f, 0.04f, 0.05f))
-            : new Color(0.93f, 0.93f, 0.9f);
         string ruta = Carpeta + "/Materiales/Murther_" + nombre + ".mat";
         AssetDatabase.DeleteAsset(ruta);
-        var m = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        m.SetColor("_BaseColor", color);
-        m.SetFloat("_Smoothness", l.Contains("shi") ? 0.85f : (negro ? 0.45f : 0.25f));
-        if (negro && !l.Contains("abs"))
-        {
-            // Cuerpo, manos y pies: un brillo propio tenue para que no se pierdan contra el fondo oscuro.
-            m.EnableKeyword("_EMISSION");
-            m.SetColor("_EmissionColor", new Color(0.20f, 0.20f, 0.24f));
-            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
-        }
+        var m = new Material(Shader.Find(ShaderTinta));
+        ConfigurarMaterialTinta(m, nombre);
         AssetDatabase.CreateAsset(m, ruta);
         return m;
+    }
+
+    public const string ShaderTinta = "Five Star/Murther Tinta";
+
+    // Valores del shader de tinta según la parte del modelo (el nombre del material del FBX).
+    // Antes se usaba URP/Lit: un sombreado suave "de plástico" que no combinaba con los fondos dibujados.
+    public static void ConfigurarMaterialTinta(Material m, string nombre)
+    {
+        string l = nombre.ToLowerInvariant();
+        bool negro = l.Contains("black") || l.Contains("negro");
+        m.shader = Shader.Find(ShaderTinta);
+        if (l.Contains("shi"))
+        {
+            // Brillos de los ojos: blancos planos, sin sombra ni contorno.
+            m.SetColor("_BaseColor", new Color(0.97f, 0.97f, 0.95f));
+            m.SetColor("_ColorSombra", Color.white);
+            m.SetFloat("_GrosorContorno", 0f);
+        }
+        else if (negro && l.Contains("abs"))
+        {
+            // Cuencas de los ojos: negro absoluto, sin contorno (ya están hundidas en el casco).
+            m.SetColor("_BaseColor", new Color(0.015f, 0.015f, 0.02f));
+            m.SetColor("_ColorSombra", Color.white);
+            m.SetFloat("_GrosorContorno", 0f);
+        }
+        else if (negro)
+        {
+            // Cuerpo, manos y pies: tinta negra con borde de luz y un brillo duro de tinta húmeda,
+            // para que la silueta no se pierda contra las zonas negras del fondo.
+            m.SetColor("_BaseColor", new Color(0.1f, 0.1f, 0.12f));
+            m.SetFloat("_Umbral", 0.7f);
+            m.SetColor("_ColorSombra", new Color(0.45f, 0.45f, 0.5f));
+            m.SetColor("_ColorBorde", new Color(0.3f, 0.31f, 0.4f));
+            m.SetFloat("_AnchoBorde", 0.25f);
+            m.SetColor("_ColorBrillo", new Color(0.5f, 0.5f, 0.58f));
+            m.SetFloat("_TamBrillo", 0.025f);
+            m.SetFloat("_Contraluz", 3f);
+            m.SetFloat("_GrosorContorno", 0.025f);
+        }
+        else
+        {
+            // Casco y dientes: hueso claro, sombra malva fría y oscura como la penumbra del escenario, trama de tinta.
+            m.SetColor("_BaseColor", new Color(0.84f, 0.85f, 0.87f));
+            m.SetColor("_ColorSombra", new Color(0.34f, 0.31f, 0.38f));   // malva, como las sombras del fondo
+            m.SetFloat("_Contraluz", 3f);
+            m.SetFloat("_Umbral", 0.7f);
+            m.SetFloat("_Trama", 0.75f);
+            m.SetFloat("_TramaEscala", 7f);      // ~13 px entre líneas en 1080p: sin moiré
+            m.SetFloat("_TramaGrosor", 0.3f);
+            m.SetFloat("_TramaCruzada", 0.6f);
+            m.SetFloat("_UmbralProfundo", 0.42f);
+            m.SetFloat("_GrosorContorno", 0.025f);
+        }
     }
 
     // Renderiza solo a Murther sobre fondo magenta con una cámara ortográfica de frente y devuelve

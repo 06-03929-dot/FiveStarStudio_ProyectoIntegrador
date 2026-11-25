@@ -238,7 +238,7 @@ public static class AnimadorUtil
 
 public static class TintaUtil
 {
-    [MenuItem("Juego/Agregar tinta al jugador")]
+    [MenuItem("Juego/Prototipo anterior/Agregar tinta al jugador")]
     static void Menu()
     {
         var pc = Object.FindFirstObjectByType<PlayerController3D>();
