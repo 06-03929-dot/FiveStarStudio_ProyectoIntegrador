@@ -64,8 +64,17 @@ public class FlujoFader : MonoBehaviour
 
     IEnumerator RutinaIrAEscena(string escena, float duracion)
     {
+        // Si la escena no está en Build Settings, LoadScene fallaba y la pantalla se quedaba en negro
+        // bloqueando los clics para siempre. Ahora se avisa en la consola y se vuelve a mostrar la escena actual.
+        if (!Application.CanStreamedLevelBeLoaded(escena))
+        {
+            Debug.LogError("FlujoFader: la escena \"" + escena + "\" no está en Build Settings (Juego > Registrar escenas en Build Settings).");
+            yield return Fundir(grupo.alpha, 0f, duracion * 0.5f);
+            yield break;
+        }
+
         yield return Fundir(grupo.alpha, 1f, duracion);
-        SceneManager.LoadScene(escena);
+        yield return SceneManager.LoadSceneAsync(escena);
         yield return null;
         yield return Fundir(1f, 0f, duracion);
     }
@@ -81,7 +90,9 @@ public class FlujoFader : MonoBehaviour
     IEnumerator Fundir(float desde, float hasta, float duracion)
     {
         grupo.blocksRaycasts = true;
-        for (float t = 0f; t < duracion; t += Time.unscaledDeltaTime)
+        // El primer cuadro después de cargar una escena puede durar medio segundo o más; sin este tope,
+        // ese salto se comía el fundido de entrada y la escena aparecía de golpe.
+        for (float t = 0f; t < duracion; t += Mathf.Min(Time.unscaledDeltaTime, 1f / 30f))
         {
             grupo.alpha = Mathf.Lerp(desde, hasta, t / duracion);
             yield return null;

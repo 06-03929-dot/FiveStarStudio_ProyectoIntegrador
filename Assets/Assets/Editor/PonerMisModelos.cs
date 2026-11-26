@@ -31,7 +31,7 @@ public class PonerMisModelos : EditorWindow
     public float escalaEscenario = 1f;
     Vector2 scroll;
 
-    [MenuItem("Juego/Poner mis modelos 3D")]
+    [MenuItem("Juego/Prototipo anterior/Poner mis modelos 3D")]
     static void Abrir() => GetWindow<PonerMisModelos>("Mis modelos 3D");
 
     void OnGUI()
